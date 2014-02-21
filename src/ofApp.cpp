@@ -3,6 +3,7 @@
 //--------------------------------------------------------------
 void ofApp::setup(){
     
+    ofSetFrameRate(30);
     //Camera settings
     camWidth= 640;
     camHeight = 480;
@@ -21,13 +22,20 @@ void ofApp::setup(){
     
     numZones = 5; //this sets up how many motion zones you're working with
     
+    historySize = 5; //CHANGE this value to average over a smaller amount of values ie 2 would be averaging over 2 frames, 60 frames is more like 2 seconds of values
+    
     //Init some vectors...
     zone.assign(numZones,0.0);
-    
+    smoothedZone.assign(numZones, 0.0);
+
     for (int i=0; i<numZones; i++){
         vector<float> temp;
         temp.assign(200,0.0);
         motionGraphs.push_back(temp);
+        
+        vector<int> smoothTemp;
+        smoothTemp.assign(historySize,0.0);
+        zoneHistory.push_back(smoothTemp);
     }
     
     trailsOn = true;
@@ -76,14 +84,26 @@ void ofApp::updateMotion(unsigned char *pixels){
         cameraMotionFloatImage.blurGaussian( trailBlur );
     }
     
-    
-    
     for (int i=0; i<numZones; i++){
         
         zone[i] = cameraGrayDiffImage.countNonZeroInRegion(i*(camWidth/numZones), 0,(camWidth/numZones), camHeight); //for each zone - give me the number of white pixels detected in that window - pixels are turned white because of motion (from absolute differencing the 2 frames)
         //cout<< zone[i] <<endl;
-
-        float scaledVal = ofMap(zone[i], 0, graphYScale, 0.0, 1.0, true);         //scale the pixel count values between 0 and 1
+        
+        
+        zoneHistory[i].push_back(zone[i]); //put the zone value into a history keeper
+        
+        int sum = 0;
+        for (int j=0; j<zoneHistory[i].size(); j++) {
+            sum = sum + zoneHistory[i][j]; //add up all the values in the history
+        }
+        
+        smoothedZone[i] = sum/zoneHistory[i].size(); //take their average (divide the sum of all history values by the number of history values)
+        
+        if(zoneHistory[i].size()>=historySize){
+            zoneHistory[i].erase(zoneHistory[i].begin(),zoneHistory[i].begin()+1);
+        } //erase old history values
+        
+        float scaledVal = ofMap(smoothedZone[i], 0, graphYScale, 0.0, 1.0, true);         //scale the pixel count values between 0 and 1
         
         motionGraphs[i].push_back(scaledVal); //this is for the motion graphs
         if(motionGraphs[i].size()>=200){

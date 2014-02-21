@@ -37,6 +37,12 @@ class ofApp : public ofBaseApp{
     
     vector <int> zone;
     
+    int historySize;
+    
+    vector < vector <int> > zoneHistory;
+    
+    vector <int> smoothedZone;
+    
     int numZones;
     
     int graphYScale;
