@@ -4,10 +4,10 @@
 void ofApp::setup(){
     
     //Camera settings
-    camWidth=640;
+    camWidth= 640;
     camHeight = 480;
     // testCapture.allocate(camWidth, camHeight, GL_RGB);
-    //vidGrabber.setDeviceID(3); //dont set this explicitly
+    //vidGrabber.setDeviceID(0); //sets 
     vidGrabber.initGrabber(camWidth, camHeight);
     
     //CV motion settings
@@ -19,8 +19,9 @@ void ofApp::setup(){
 	cameraMotionFloatImage.allocate( camWidth, camHeight );
     
     
-    numZones = 5;
+    numZones = 5; //this sets up how many motion zones you're working with
     
+    //Init some vectors...
     zone.assign(numZones,0.0);
     
     for (int i=0; i<numZones; i++){
@@ -31,14 +32,14 @@ void ofApp::setup(){
     
     trailsOn = true;
     
-    trailBlur = 3;
+    trailBlur = 3; //amount of blur
     
-    graphYScale = 10000;
+    graphYScale = 10000; //this sets your ceiling on how many pixels is your maximum value for motion
     
-    cameraMotionFadeAmount = 0.7;
+    cameraMotionFadeAmount = 0.7; //this sets the fade time for the white streaky pixels - 0 is no fade, .99 is heavy slow feedback
     
     
-    oscSend.setup("localhost", 6767);
+    oscSend.setup("localhost", 6767); //IP address and port
 
 }
 
@@ -60,35 +61,40 @@ void ofApp::update(){
 void ofApp::updateMotion(unsigned char *pixels){
     //--------------------------------------------------------------
 
-        cameraColorImage.setFromPixels( pixels, camWidth, camHeight );
+    cameraColorImage.setFromPixels( pixels, camWidth, camHeight );
+    
+    cameraGrayPrevImage	= cameraGrayImage;
+    cameraGrayImage		= cameraColorImage;
+    
+    cameraGrayDiffImage.absDiff( cameraGrayImage, cameraGrayPrevImage ); //take difference between current frame and previous frame
+    cameraGrayDiffImage.threshold( 30 );
         
-        cameraGrayPrevImage	= cameraGrayImage;
-        cameraGrayImage		= cameraColorImage;
-        
-        cameraGrayDiffImage.absDiff( cameraGrayImage, cameraGrayPrevImage );
-        cameraGrayDiffImage.threshold( 30 );
-        
-    if(trailsOn){ //draw motion trails
+    if(trailsOn){ //draw motion trails - doesn't really effect motion valuez
         cameraDiffFloatImage	= cameraGrayDiffImage;
         cameraMotionFloatImage	*= cameraMotionFadeAmount;
         cameraMotionFloatImage	+= cameraDiffFloatImage;
         cameraMotionFloatImage.blurGaussian( trailBlur );
     }
     
+    
+    
     for (int i=0; i<numZones; i++){
-        zone[i] = cameraGrayDiffImage.countNonZeroInRegion(i*(camWidth/numZones), 0,(camWidth/numZones), camHeight);
+        
+        zone[i] = cameraGrayDiffImage.countNonZeroInRegion(i*(camWidth/numZones), 0,(camWidth/numZones), camHeight); //for each zone - give me the number of white pixels detected in that window - pixels are turned white because of motion (from absolute differencing the 2 frames)
         //cout<< zone[i] <<endl;
-        float scaledVal = ofMap(zone[i], 0, graphYScale, 0.0, 1.0, true);
-        motionGraphs[i].push_back(scaledVal);
+
+        float scaledVal = ofMap(zone[i], 0, graphYScale, 0.0, 1.0, true);         //scale the pixel count values between 0 and 1
+        
+        motionGraphs[i].push_back(scaledVal); //this is for the motion graphs
         if(motionGraphs[i].size()>=200){
             motionGraphs[i].erase(motionGraphs[i].begin(),motionGraphs[i].begin()+1);
-        }
+        } //make sure the values don't get too high
         
         //Here is where we send the OSC values of each zone
         
         ofxOscMessage m;
         m.setAddress("/zone" + ofToString(i)); //zone1,zone2
-        m.addFloatArg(ofMap(scaledVal, 0, 1, 0, 127, true)); //remap to midi values for OSCulator
+        m.addFloatArg(ofMap(scaledVal, 0, 1, 0, 127, true)); //remap the scaled value to midi values for OSCulator
         
         oscSend.sendMessage(m);
     }
@@ -114,6 +120,7 @@ void ofApp::draw(){
     vidGrabber.draw(0, 0, camWidth, camHeight); //Draw camera feed
     ofDisableBlendMode();
     
+    //Draw motion graphs underneath sections
     for(int i=0; i<numZones; i++){
         
         if(i==0){
