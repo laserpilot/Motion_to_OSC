@@ -22,7 +22,7 @@ void ofApp::setup(){
     
     numZones = 5; //this sets up how many motion zones you're working with
     
-    historySize = 5; //CHANGE this value to average over a smaller amount of values ie 2 would be averaging over 2 frames, 60 frames is more like 2 seconds of values
+    historySize = 3; //CHANGE this value to average over a smaller amount of values ie 2 would be averaging over 2 frames, 60 frames is more like 2 seconds of values
     
     //Init some vectors...
     zone.assign(numZones,0.0);
@@ -114,13 +114,23 @@ void ofApp::updateMotion(unsigned char *pixels){
         
         ofxOscMessage m;
         m.setAddress("/zone" + ofToString(i)); //zone1,zone2
-        m.addFloatArg(ofMap(scaledVal, 0, 1, 0, 127, true)); //remap the scaled value to midi values for OSCulator
+        m.addFloatArg(ofMap(smoothedZone[i], 0, graphYScale, 0, 1, true)); //remap the scaled value to midi values for OSCulator
+        
+        //cout << "smoothedZone" << smoothedZone[i] << " " << ofMap(smoothedZone[i], 0, graphYScale, 0, 127, true) <<endl;
         
         oscSend.sendMessage(m);
     }
     
+    ofxOscMessage m;
+    m.setAddress("/oscillate1"); //zone1,zone2
+    m.addFloatArg(ofMap(sin(0.7*ofGetElapsedTimef()), -1,1,0,1));
+    oscSend.sendMessage(m);
     
-        
+    ofxOscMessage v;
+    v.setAddress("/oscillate2"); //zone1,zone2
+    v.addFloatArg(ofMap(cos(0.6*ofGetElapsedTimef()), -1,1,0,1));
+    oscSend.sendMessage(v);
+    
     
 }
 
@@ -176,7 +186,7 @@ void ofApp::draw(){
         ofSetColor(255);
         ofPopMatrix();
         ofDrawBitmapString("Zone " + ofToString(i), i*(camWidth/numZones), camHeight+20);
-        ofDrawBitmapString(ofToString(zone[i]), i*(camWidth/numZones), camHeight+42);
+        ofDrawBitmapString(ofToString(smoothedZone[i]), i*(camWidth/numZones), camHeight+42);
 
         
         ofLine(i*(camWidth/numZones), 0, i*(camWidth/numZones), camHeight);
