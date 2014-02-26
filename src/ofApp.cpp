@@ -49,6 +49,11 @@ void ofApp::setup(){
     
     oscSend.setup("localhost", 6767); //IP address and port
 
+    //Mike Add
+    tracksOn = false;
+    tracksOff = false;
+    count = 0;
+    countInc = 0;
 }
 
 //--------------------------------------------------------------
@@ -64,6 +69,8 @@ void ofApp::update(){
 		updateMotion( vidGrabber.getPixels() );
     }
 
+    count += countInc;
+    
 }
 
 void ofApp::updateMotion(unsigned char *pixels){
@@ -119,7 +126,47 @@ void ofApp::updateMotion(unsigned char *pixels){
         //cout << "smoothedZone" << smoothedZone[i] << " " << ofMap(smoothedZone[i], 0, graphYScale, 0, 127, true) <<endl;
         
         oscSend.sendMessage(m);
-    }
+        
+        //////Mike ADD counter to start linear ableton timeline///////
+        
+        if ( zone[i] >= 4000 && ofGetElapsedTimef() >= 3.0f) {
+        
+            tracksOn = true;
+            tracksOff = false;
+            countInc = 1;
+        
+        }
+        
+        else if (count >= 2100) {
+            
+            tracksOff = true;
+            tracksOn = false;
+            countInc = 0;
+            count = 0;
+            tracksOn = 0;
+            
+        }
+        
+        
+        //turn tracks on
+        ofxOscMessage start;
+        start.setAddress("/start"); //all zones
+        start.addIntArg(tracksOn);
+        oscSend.sendMessage(start);
+        
+        //turn tracks off
+        ofxOscMessage stop;
+        stop.setAddress("/stop"); //all zones
+        stop.addIntArg(tracksOff);
+        oscSend.sendMessage(stop);
+       
+        
+        cout << "tracksOff: " << tracksOff << endl;
+        cout << "tracksOn: " << tracksOn << endl;
+        cout << "Counter: " << count << endl;
+        
+        
+        }
     
     ofxOscMessage m;
     m.setAddress("/oscillate1"); //zone1,zone2
@@ -131,6 +178,7 @@ void ofApp::updateMotion(unsigned char *pixels){
     v.addFloatArg(ofMap(cos(0.6*ofGetElapsedTimef()), -1,1,0,1));
     oscSend.sendMessage(v);
     
+   
     
 }
 
