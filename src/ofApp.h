@@ -55,4 +55,9 @@ class ofApp : public ofBaseApp{
     
     ofxOscSender oscSend;
 		
+    //Mike Add
+    bool tracksOn, tracksOff;
+    int count, countInc;
+    
+    
 };
